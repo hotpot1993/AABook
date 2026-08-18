@@ -1,0 +1,105 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           Int               @id @default(autoincrement())
+  nickname     String            @unique
+  password     String
+  createdAt    DateTime          @default(now())
+  ledgers      Ledger[]          @relation("LedgerOwner")
+  members      LedgerMember[]
+  backup       UserBackup?
+  backupImages UserBackupImage[]
+}
+
+model Ledger {
+  id           Int            @id @default(autoincrement())
+  name         String
+  description  String         @default("")
+  coverType    String         @default("green")
+  baseCurrency String         @default("CNY")
+  budgetAmount Float          @default(0)
+  ownerId      Int
+  owner        User           @relation("LedgerOwner", fields: [ownerId], references: [id])
+  inviteCode   String         @unique
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+  members      LedgerMember[]
+  expenses     Expense[]
+  settlements  Settlement[]
+}
+
+model LedgerMember {
+  id       Int      @id @default(autoincrement())
+  ledgerId Int
+  userId   Int
+  ledger   Ledger   @relation(fields: [ledgerId], references: [id], onDelete: Cascade)
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  joinedAt DateTime @default(now())
+
+  @@unique([ledgerId, userId])
+}
+
+model Expense {
+  id               Int            @id @default(autoincrement())
+  ledgerId         Int
+  title            String
+  totalAmountCny   Float
+  originalCurrency String         @default("CNY")
+  originalAmount   Float          @default(0)
+  exchangeRate     Float          @default(1)
+  category         String         @default("其他")
+  paidByMemberId   Int
+  note             String         @default("")
+  receiptUri       String?
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+  ledger           Ledger         @relation(fields: [ledgerId], references: [id], onDelete: Cascade)
+  splits           ExpenseSplit[]
+}
+
+model ExpenseSplit {
+  id         Int     @id @default(autoincrement())
+  expenseId  Int
+  memberId   Int
+  shareType  String
+  shareValue Float
+  amountCny  Float
+  expense    Expense @relation(fields: [expenseId], references: [id], onDelete: Cascade)
+}
+
+model Settlement {
+  id           Int       @id @default(autoincrement())
+  ledgerId     Int
+  fromMemberId Int
+  toMemberId   Int
+  amountCny    Float
+  isPaid       Boolean   @default(false)
+  paidAt       DateTime?
+  settledAt    DateTime  @default(now())
+  ledger       Ledger    @relation(fields: [ledgerId], references: [id], onDelete: Cascade)
+}
+
+model UserBackup {
+  userId    Int      @id
+  data      Json
+  revision  Int      @default(0)
+  updatedAt DateTime @default(now()) @updatedAt
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model UserBackupImage {
+  userId    Int
+  imageKey  String
+  data      Bytes
+  updatedAt DateTime @default(now()) @updatedAt
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, imageKey])
+}

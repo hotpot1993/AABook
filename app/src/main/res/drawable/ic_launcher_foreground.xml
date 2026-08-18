@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- Ledger/book icon -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:fillAlpha="0.95"
+        android:pathData="M30,28 L78,28 C81.3,28 84,30.7 84,34 L84,76 C84,79.3 81.3,82 78,82 L30,82 C26.7,82 24,79.3 24,76 L24,34 C24,30.7 26.7,28 30,28 Z" />
+
+    <!-- Book spine/binding line -->
+    <path
+        android:fillColor="#3D8A5A"
+        android:pathData="M30,28 L33,28 L33,82 L30,82 Z" />
+
+    <!-- AA text -->
+    <path
+        android:fillColor="#1A4A2E"
+        android:pathData="M42,67 L48,48 L60,48 L66,67 H61 L59.5,62 H48.5 L47,67 Z M50.5,49 L48.5,58 L59.5,58 L57.5,49 Z" />
+
+    <!-- Decorative line (simulating spending bars) -->
+    <path
+        android:fillColor="#A8D5B5"
+        android:pathData="M40,36 L52,36 L52,38 L40,38 Z M40,40 L58,40 L58,42 L40,42 Z M40,44 L46,44 L46,46 L40,46 Z" />
+</vector>

@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Modern gradient-based green background -->
+    <path
+        android:fillColor="#3D8A5A"
+        android:pathData="M0,0h108v108H0z" />
+    <path
+        android:fillColor="#4DAD6E"
+        android:pathData="M0,54 Q54,0 108,54 L108,108 L0,108z"
+        android:fillAlpha="0.3" />
+</vector>

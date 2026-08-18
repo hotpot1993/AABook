@@ -1,0 +1,28 @@
+# Built files
+/build/
+/app/build/
+*.apk
+*.aab
+*.ap_
+
+# IDE
+.idea/
+*.iml
+.gradle/
+local.properties
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Keystore
+*.jks
+*.keystore
+keystore.properties
+secrets.properties
+
+# Node / server
+node_modules/
+dist/
+.env
+*.log

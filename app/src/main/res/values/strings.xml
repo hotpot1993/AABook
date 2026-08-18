@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">AA 记账</string>
+    <string name="ledger_list">账本</string>
+    <string name="add_ledger">新建账本</string>
+    <string name="add_expense">记一笔</string>
+    <string name="settlement">结算</string>
+    <string name="members">成员</string>
+    <string name="statistics">统计</string>
+    <string name="settings">设置</string>
+    <string name="quick_add">快速记账</string>
+    <string name="overview">概览</string>
+
+    <!-- 记账 -->
+    <string name="expense_title">消费名称</string>
+    <string name="expense_amount">金额</string>
+    <string name="expense_currency">币种</string>
+    <string name="expense_category">分类</string>
+    <string name="expense_note">备注（选填）</string>
+    <string name="expense_paid_by">付款人</string>
+    <string name="expense_participants">参与人</string>
+    <string name="expense_split_method">分摊方式</string>
+    <string name="expense_receipt">小票照片</string>
+    <string name="expense_save">保存</string>
+
+    <!-- 分摊 -->
+    <string name="split_equal">均分</string>
+    <string name="split_shares">按份分</string>
+    <string name="split_custom">自定义</string>
+    <string name="split_percentage">按百分比</string>
+    <string name="share_count">份数</string>
+
+    <!-- 结算 -->
+    <string name="you_owe">应付</string>
+    <string name="you_receive">应收</string>
+    <string name="settle_up">结清</string>
+    <string name="transfer_to">转给 %1$s</string>
+    <string name="transfer_amount">¥%1$.2f</string>
+    <string name="no_settlement_needed">无需结算，已全部结清 🎉</string>
+    <string name="copy_text">复制文案</string>
+    <string name="share_image">生成图片</string>
+    <string name="settlement_summary">结算清单</string>
+
+    <!-- 分类 -->
+    <string name="category_food">餐饮</string>
+    <string name="category_transport">交通</string>
+    <string name="category_hotel">住宿</string>
+    <string name="category_shopping">购物</string>
+    <string name="category_entertainment">娱乐</string>
+    <string name="category_other">其他</string>
+
+    <!-- 统计 -->
+    <string name="stats_personal">个人支出/负债</string>
+    <string name="stats_category">分类消费</string>
+    <string name="stats_timeline">时间轴</string>
+
+    <!-- 备份 -->
+    <string name="export_data">导出数据</string>
+    <string name="import_data">导入数据</string>
+    <string name="backup_reminder">建议定期备份数据，避免丢失</string>
+
+    <!-- 通用 -->
+    <string name="cancel">取消</string>
+    <string name="confirm">确认</string>
+    <string name="delete">删除</string>
+    <string name="edit">编辑</string>
+    <string name="save">保存</string>
+    <string name="loading">加载中…</string>
+    <string name="empty_ledger">还没有账本，点击右下角创建一个吧</string>
+    <string name="empty_expense">还没有消费记录，点击 + 记一笔</string>
+    <string name="select_all">全选</string>
+    <string name="invert_select">反选</string>
+    <string name="rate_outdated">汇率更新于 %1$d 天前</string>
+</resources>
