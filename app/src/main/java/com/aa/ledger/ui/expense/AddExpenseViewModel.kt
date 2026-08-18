@@ -13,6 +13,7 @@ import com.aa.ledger.data.local.entity.MemberEntity
 import com.aa.ledger.data.repository.CurrencyGroup
 import com.aa.ledger.data.repository.ExchangeRateRepository
 import com.aa.ledger.data.repository.ExpenseRepository
+import com.aa.ledger.data.repository.GlmRepository
 import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.text.TextRecognition
 import com.google.mlkit.vision.text.chinese.ChineseTextRecognizerOptions
@@ -64,6 +65,7 @@ data class AddExpenseUiState(
     val savedSuccessfully: Boolean = false,
     val showOcrReview: Boolean = false,
     val ocrReviewAmount: String = "",
+    val ocrReviewCurrency: String? = null,
     val ocrReviewUri: Uri? = null,
 
     // 编辑模式
@@ -78,6 +80,7 @@ class AddExpenseViewModel @Inject constructor(
     private val ledgerRepository: LedgerRepository,
     private val exchangeRateRepository: ExchangeRateRepository,
     private val memberDao: MemberDao,
+    private val glmRepository: GlmRepository,
     @ApplicationContext private val appContext: Context
 ) : ViewModel() {
 
@@ -289,17 +292,42 @@ class AddExpenseViewModel @Inject constructor(
     private fun runOcr(uri: Uri) {
         _uiState.update { it.copy(isOcrProcessing = true) }
         viewModelScope.launch {
+            // 1. 优先用 GLM 视觉大模型做结构化识别
+            val glmReceipt = try {
+                val bytes = appContext.contentResolver.openInputStream(uri)?.use { it.readBytes() }
+                val mime = appContext.contentResolver.getType(uri) ?: "image/jpeg"
+                if (bytes != null) glmRepository.recognizeReceipt(bytes, mime) else null
+            } catch (e: Exception) { null }
+            if (glmReceipt != null && glmReceipt.total != null) {
+                val total = glmReceipt.total
+                val amountStr = if (total == total.toLong().toDouble()) total.toLong().toString() else total.toString()
+                android.util.Log.d("OCR", "GLM识别金额: $amountStr, 货币: ${glmReceipt.currency}")
+                _uiState.update { it.copy(
+                    isOcrProcessing = false,
+                    showOcrReview = true,
+                    ocrReviewAmount = amountStr,
+                    ocrReviewCurrency = glmReceipt.currency,
+                    ocrReviewUri = uri
+                ) }
+                return@launch
+            }
+
+            // 2. 回退到 ML Kit 本地 OCR
             try {
                 val recognizer = TextRecognition.getClient(ChineseTextRecognizerOptions.Builder().build())
                 val image = InputImage.fromFilePath(appContext, uri)
                 val result = recognizer.process(image).await()
                 val text = result.text
-                val amount = extractTotalAmount(text)
+                android.util.Log.d("OCR", "原始识别文本: $text")
+                val amount = extractTotalAmountLayout(result) ?: extractTotalAmount(text)
+                val currency = extractCurrency(text)
+                android.util.Log.d("OCR", "识别金额: $amount, 货币: $currency")
                 // 弹出 OCR 复核对话框，让用户确认/修改金额
                 _uiState.update { it.copy(
                     isOcrProcessing = false,
                     showOcrReview = true,
                     ocrReviewAmount = amount ?: "",
+                    ocrReviewCurrency = currency,
                     ocrReviewUri = uri
                 ) }
             } catch (_: Exception) {
@@ -307,6 +335,7 @@ class AddExpenseViewModel @Inject constructor(
                     isOcrProcessing = false,
                     showOcrReview = true,
                     ocrReviewAmount = "",
+                    ocrReviewCurrency = null,
                     ocrReviewUri = uri
                 ) }
             }
@@ -314,9 +343,15 @@ class AddExpenseViewModel @Inject constructor(
     }
 
     fun confirmOcrAmount(amount: String) {
-        val cleaned = amount.trim().replace(Regex("""[¥元\s]"""), "")
+        val cleaned = amount.trim().replace(Regex("""[¥￥元$€£₩\s]"""), "")
         if (cleaned.toDoubleOrNull() != null && cleaned.toDoubleOrNull()!! > 0) {
-            _uiState.update { it.copy(amount = cleaned, showOcrReview = false, ocrReviewAmount = "", ocrReviewUri = null) }
+            // OCR 识别出了货币则自动切换
+            val currency = _uiState.value.ocrReviewCurrency
+            if (currency != null && currency != _uiState.value.selectedCurrency &&
+                currency in ExchangeRateRepository.CURATED_CURRENCY_CODES) {
+                updateCurrency(currency)
+            }
+            _uiState.update { it.copy(amount = cleaned, showOcrReview = false, ocrReviewAmount = "", ocrReviewCurrency = null, ocrReviewUri = null) }
             recalculateConversion()
         } else {
             _uiState.update { it.copy(error = "请输入有效金额") }
@@ -329,63 +364,71 @@ class AddExpenseViewModel @Inject constructor(
     }
 
     fun dismissOcrReview() {
-        _uiState.update { it.copy(showOcrReview = false, ocrReviewAmount = "", ocrReviewUri = null) }
+        _uiState.update { it.copy(showOcrReview = false, ocrReviewAmount = "", ocrReviewCurrency = null, ocrReviewUri = null) }
     }
 
     /**
      * 从 OCR 文本中提取最终付款总金额。
-     * 策略：
-     *   1. 优先匹配「实付/实收/应付/合计/总计/付款金额」后面的金额
-     *   2. 排除 单价/小计/折扣/优惠/税率/服务费/找零 等干扰行
-     *   3. 清洗数字：去符号、统一小数点
-     *   4. 校验：0.01 ~ 99999.99，最多 2 位小数
-     *   5. 返回格式化字符串，失败返回 null
+     * 策略（按优先级）：
+     *   1. 带 ¥/￥ 货币符号的行（支付宝/微信账单金额必带符号，且金额常出现在截图顶部）
+     *   2. 带总金额关键词的行（实付/应付/合计/总计…）
+     *   3. 带「元」后缀的行
+     *   4. 兜底：带小数点的独立金额（排除日期/时间/长单号）
+     * 校验：0.01 ~ 99999.99，最多 2 位小数；失败返回 null
      */
     private fun extractTotalAmount(text: String): String? {
         val cleaned = cleanText(text)
 
-        // ── Step 1：按行拆分，找包含总金额关键词的行 ──
         val totalKeywords = listOf("实付", "实收", "应付", "应付金额", "付款金额", "支付金额",
-            "合计", "总计", "总额", "总金额", "应收", "应收金额", "消费金额", "账单金额")
-        val excludeKeywords = listOf("单价", "小计", "折扣", "优惠", "税率", "服务费",
-            "找零", "数量", "件数", "会员", "积分", "抹零", "抵扣", "代金券", "优惠券")
+            "合计", "合計", "总计", "总额", "总金额", "应收", "应收金额", "消费金额", "账单金额",
+            "TOTAL", "Total", "Amount Due", "Total Due")
+        val excludeKeywords = listOf("单价", "小计", "小計", "折扣", "优惠", "税率", "服务费",
+            "找零", "数量", "件数", "会员", "积分", "抹零", "抵扣", "代金券", "优惠券",
+            "消費税", "外税", "内税", "税額")
 
         val lines = cleaned.split('\n', '\r').map { it.trim() }.filter { it.isNotBlank() }
 
-        // 从后往前扫描（总金额通常在末尾）
-        var candidateLine: String? = null
+        // Step 1：总金额关键词行（最高优先级，小票的合计/实付/Total 等）
+        for (line in lines) {
+            if (excludeKeywords.any { line.contains(it) }) continue
+            if (totalKeywords.any { line.contains(it, ignoreCase = true) }) {
+                val n = extractNumber(line)
+                if (n != null) return n
+            }
+        }
+
+        // Step 2：带 ¥/￥/$ 的行，取金额最大的（合计通常是金额最大的，避免取到商品单价）
+        var maxValue: Double? = null
+        for (line in lines) {
+            if (excludeKeywords.any { line.contains(it) }) continue
+            if (line.contains('¥') || line.contains('￥') || line.contains('$')) {
+                val n = extractNumber(line)
+                if (n != null) {
+                    val v = n.toDouble()
+                    if (maxValue == null || v > maxValue) maxValue = v
+                }
+            }
+        }
+        if (maxValue != null) return "%.2f".format(maxValue)
+
+        // Step 3：带「元」后缀的行
+        for (line in lines) {
+            if (excludeKeywords.any { line.contains(it) }) continue
+            if (line.contains('元')) {
+                val n = extractNumber(line)
+                if (n != null) return n
+            }
+        }
+
+        // Step 4：兜底——从后往前找带小数的独立金额
         for (i in lines.indices.reversed()) {
             val line = lines[i]
-            // 排除干扰行
             if (excludeKeywords.any { line.contains(it) }) continue
-            // 匹配目标行
-            if (totalKeywords.any { line.contains(it) }) {
-                candidateLine = line
-                break
-            }
+            val n = extractNumber(line)
+            if (n != null) return n
         }
 
-        // Step 2：如果没有关键词行，尝试从倒数几行中提取
-        if (candidateLine == null) {
-            for (i in lines.indices.reversed().take(5)) {
-                val line = lines[i]
-                if (excludeKeywords.any { line.contains(it) }) continue
-                val n = extractNumber(line)
-                if (n != null) { candidateLine = line; break }
-            }
-        }
-
-        // Step 3：如果还是没有，扫描全部行
-        if (candidateLine == null) {
-            for (line in lines) {
-                if (excludeKeywords.any { line.contains(it) }) continue
-                val n = extractNumber(line)
-                if (n != null) { candidateLine = line; break }
-            }
-        }
-
-        candidateLine ?: return null
-        return extractNumber(candidateLine)
+        return null
     }
 
     /** 清洗 OCR 文本：去不可见字符、统一全角半角、修复常见 OCR 错误 */
@@ -393,24 +436,32 @@ class AddExpenseViewModel @Inject constructor(
         return text
             .replace('：', ':')       // 全角冒号 → 半角
             .replace('，', ',')
-            .replace('¥', '¥')
+            .replace('￥', '¥')       // 全角人民币符号 → 半角
             .replace(" ", "")          // 去空格
             .replace(Regex("""[Oo]"""), "0")  // 常见 OCR 字母→数字混淆
             .replace(Regex("""[lI]"""), "1")
             .replace(Regex("""[sS]"""), "5")
-            .replace(",", ".")          // 逗号→小数点 (如 12,50 → 12.50)
+            .let { normalizeComma(it) }  // 区分千位分隔符与小数逗号
             .replace(Regex("""\.{2,}"""), ".") // 多小数点→单小数点
             .replace(Regex("""[`‘']"""), ".")  // 非标准引号→点
     }
 
+    /** 正确处理逗号：区分千位分隔符（$1,211.00 → $1211.00）和小数逗号（12,50 → 12.50） */
+    private fun normalizeComma(s: String): String {
+        return s
+            // 千位分隔符：逗号后恰好 3 位数字 → 删除逗号
+            .replace(Regex("""(\d),(\d{3})(?=\d|\.|$)"""), "$1$2")
+            // 小数逗号：逗号后恰好 2 位数字且其后无数字 → 转小数点
+            .replace(Regex("""(\d),(\d{2})(?!\d)"""), "$1.$2")
+    }
+
     /** 从一行文本中提取有效金额并校验，返回格式化字符串 */
     private fun extractNumber(line: String): String? {
-        // 匹配所有可能的金额表达式
+        // 匹配可能的金额表达式（不再匹配冒号，避免把时间 12:34:56 误当成金额）
         val amountPatterns = listOf(
-            Regex("""¥\s*(\d+\.?\d{0,2})"""),        // ¥123.45
-            Regex("""(\d+\.\d{1,2})\s*元"""),         // 123.45元
-            Regex(""":\s*(\d+\.?\d{0,2})"""),         // :123.45
-            Regex("""(\d+\.\d{1,2})""")               // 123.45 末尾匹配
+            Regex("""[¥￥${'$'}]\s*(\d+(?:\.\d{1,2})?)"""),      // ¥123 或 $123.45
+            Regex("""(\d+(?:\.\d{1,2})?)\s*元"""),                // 123 或 123.45元
+            Regex("""(?<![\d.])(\d{1,6}\.\d{1,2})(?![\d.])""")    // 独立小数金额（排除日期/时间/长单号）
         )
 
         var rawValue: String? = null
@@ -428,21 +479,146 @@ class AddExpenseViewModel @Inject constructor(
         // 清洗数字：去掉非数字字符（保留小数点）
         val digits = rawValue.replace(Regex("""[^\d.]"""), "")
 
-        // 处理无小数点的情况：如 "12340" 可能是 "123.40"
-        val valueStr = if (!digits.contains('.') && digits.length > 2) {
-            // 尝试理解：如果是整数，不做假设
-            digits
-        } else digits
-
         // 校验
-        val value = valueStr.toDoubleOrNull() ?: return null
+        val value = digits.toDoubleOrNull() ?: return null
 
         // 合理区间：0.01 ~ 99999.99
         if (value < 0.01 || value > 99999.99) return null
 
         // 格式化：最多保留 2 位小数
-        val formatted = "%.2f".format(value)
-        return formatted
+        return "%.2f".format(value)
+    }
+
+    /** 布局感知提取金额：利用 bounding box（Y 坐标 + 字号）定位「合计」金额 */
+    private fun extractTotalAmountLayout(result: com.google.mlkit.vision.text.Text): String? {
+        data class LineInfo(val text: String, val top: Int, val height: Int)
+
+        val lines = mutableListOf<LineInfo>()
+        for (block in result.textBlocks) {
+            for (line in block.lines) {
+                val t = line.text ?: ""
+                if (t.isBlank()) continue
+                val box = line.boundingBox ?: continue
+                lines.add(LineInfo(t, box.top, box.bottom - box.top))
+            }
+        }
+        if (lines.isEmpty()) return null
+
+        val totalKeywords = listOf("合计", "合計", "总计", "总额", "总金额", "实付", "应付",
+            "付款金额", "支付金额", "TOTAL", "Total", "Amount Due", "Total Due")
+        val excludeKeywords = listOf("单价", "小计", "小計", "折扣", "优惠", "税率", "服务费",
+            "找零", "数量", "件数", "会员", "积分", "抹零", "抵扣", "代金券", "优惠券",
+            "消費税", "消費稅", "外税", "外稅", "内税", "内稅", "税額", "稅額", "税", "稅", "%")
+
+        data class Cand(val info: LineInfo, val value: Double, val hasKeyword: Boolean)
+        val candidates = mutableListOf<Cand>()
+        for (li in lines) {
+            if (excludeKeywords.any { li.text.contains(it) }) continue
+            val v = extractAmountRelaxed(li.text) ?: continue
+            candidates.add(Cand(li, v, totalKeywords.any { li.text.contains(it, ignoreCase = true) }))
+        }
+        if (candidates.isEmpty()) return null
+
+        // 1) 金额与「合计」关键词同行的，取字号最大的
+        candidates.filter { it.hasKeyword }
+            .maxWithOrNull(compareBy({ it.info.height }, { it.value }))
+            ?.let { return "%.2f".format(it.value) }
+
+        // 2) 有「合计」关键词但金额在别的行：取关键词下方、字号最大的
+        val keywordTop = lines.filter { li -> totalKeywords.any { li.text.contains(it, ignoreCase = true) } }
+            .maxOfOrNull { it.top }
+        if (keywordTop != null) {
+            candidates.filter { it.info.top >= keywordTop - 20 }
+                .maxWithOrNull(compareBy({ it.info.height }, { it.value }))
+                ?.let { return "%.2f".format(it.value) }
+        }
+
+        // 3) 无关键词：取字号最大的（支付宝/微信的大字金额）
+        candidates.maxWithOrNull(compareBy({ it.info.height }, { it.value }))
+            ?.let { return "%.2f".format(it.value) }
+
+        return null
+    }
+
+    /** 宽松提取金额：先严格（¥/元/小数），再识别千位分隔整数（如 "1,000"，用于无货币符号的合计） */
+    private fun extractAmountRelaxed(rawLine: String): Double? {
+        extractNumber(cleanText(rawLine))?.toDouble()?.let { return it }
+        val normalized = rawLine.replace('O', '0').replace('o', '0')
+        val m = Regex("""(\d{1,3})\s*,\s*(\d{3})(?![,\d])""").find(normalized)
+        if (m != null) {
+            val num = (m.groupValues[1] + m.groupValues[2]).toDoubleOrNull()
+            if (num != null && num >= 100.0 && num <= 99999.99) return num
+        }
+        return null
+    }
+
+    /** 从 OCR 文本识别货币代码（USD/JPY/EUR 等），无法识别返回 null */
+    private fun extractCurrency(text: String): String? {
+        // 0. 强日文语境（假名/円）→ 日元（最优先，避免 ¥ 被 OCR 误读成 $ 而判为美元）
+        if (isJapaneseContext(text)) return "JPY"
+
+        // 1. 明确的中文/英文货币名（优先级最高，最可靠）
+        val nameMap = listOf(
+            "美元" to "USD", "美金" to "USD", "USD" to "USD",
+            "欧元" to "EUR", "EUR" to "EUR",
+            "英镑" to "GBP", "GBP" to "GBP",
+            "港币" to "HKD", "港元" to "HKD", "HKD" to "HKD",
+            "澳门元" to "MOP", "澳门币" to "MOP",
+            "日元" to "JPY", "日圆" to "JPY", "JPY" to "JPY",
+            "韩元" to "KRW", "韩币" to "KRW",
+            "新加坡元" to "SGD", "新币" to "SGD",
+            "泰铢" to "THB",
+            "林吉特" to "MYR",
+            "印尼盾" to "IDR", "印尼卢比" to "IDR",
+            "印度卢比" to "INR", "卢比" to "INR",
+            "越南盾" to "VND",
+            "迪拉姆" to "AED",
+            "瑞士法郎" to "CHF", "瑞郎" to "CHF",
+            "瑞典克朗" to "SEK",
+            "卢布" to "RUB",
+            "里拉" to "TRY",
+            "加元" to "CAD", "加拿大元" to "CAD",
+            "澳元" to "AUD", "澳大利亚元" to "AUD",
+            "兰特" to "ZAR",
+            "新台币" to "TWD", "台币" to "TWD",
+            "人民币" to "CNY", "RMB" to "CNY", "CNY" to "CNY",
+        )
+        for ((name, code) in nameMap) {
+            if (text.contains(name, ignoreCase = true)) return code
+        }
+
+        // 2. 货币符号（带前缀的 $ 优先，避免 $ 误判为美元）
+        val symbolMap = listOf(
+            "HK$" to "HKD", "MOP$" to "MOP", "NT$" to "TWD",
+            "US$" to "USD", "S$" to "SGD", "A$" to "AUD", "C$" to "CAD",
+            "€" to "EUR", "£" to "GBP", "₩" to "KRW", "₺" to "TRY",
+            "₽" to "RUB", "₹" to "INR", "₫" to "VND", "฿" to "THB",
+            "Rp" to "IDR", "RM" to "MYR",
+        )
+        for ((symbol, code) in symbolMap) {
+            if (text.contains(symbol)) return code
+        }
+
+        // 3. 单独的 $（美元）
+        if (text.contains('$')) return "USD"
+
+        // 4. ¥ / ￥：默认人民币，日文语境则为日元
+        if (text.contains('¥') || text.contains('￥')) {
+            return if (isJapaneseContext(text)) "JPY" else "CNY"
+        }
+
+        // 5. 元（人民币）
+        if (text.contains('元')) return "CNY"
+
+        return null
+    }
+
+    /** 判断 OCR 文本是否为日文语境（用于区分 ¥ 是人民币还是日元） */
+    private fun isJapaneseContext(text: String): Boolean {
+        // 平假名/片假名（U+3040–U+30FF）
+        val hasKana = text.any { it.code in 0x3040..0x30FF }
+        // 日文「円」字符（区别于中文「元」）
+        return hasKana || text.contains('円')
     }
 
     fun updatePaidByMember(memberId: Long) {

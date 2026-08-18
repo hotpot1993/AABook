@@ -20,6 +20,7 @@ if (secretsPropertiesFile.exists()) {
     secretsProperties.load(FileInputStream(secretsPropertiesFile))
 }
 val exchangeRateApiKey = secretsProperties.getProperty("EXCHANGE_RATE_API_KEY") ?: ""
+val glmApiKey = secretsProperties.getProperty("GLM_API_KEY") ?: ""
 
 android {
     namespace = "com.aa.ledger"
@@ -29,10 +30,11 @@ android {
         applicationId = "com.aa.ledger"
         minSdk = 29
         targetSdk = 34
-        versionCode = 3
-        versionName = "1.3.0"
+        versionCode = 4
+        versionName = "1.4.0"
 
         buildConfigField("String", "EXCHANGE_RATE_API_KEY", "\"$exchangeRateApiKey\"")
+        buildConfigField("String", "GLM_API_KEY", "\"$glmApiKey\"")
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {

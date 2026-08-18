@@ -173,7 +173,11 @@ fun AddExpenseScreen(ledgerId: Long? = null, expenseId: Long? = null, onBack: ()
                         if (uiState.ocrReviewAmount.isEmpty()) {
                             Text("未自动识别到金额，请手动输入", color = MontraRed, fontSize = 12.sp)
                         } else {
-                            Text("已识别：¥${uiState.ocrReviewAmount}", color = MontraPrimary, fontSize = 12.sp)
+                            Text(
+                                "已识别：¥${uiState.ocrReviewAmount}" + (uiState.ocrReviewCurrency?.let { "（$it）" } ?: ""),
+                                color = MontraPrimary,
+                                fontSize = 12.sp
+                            )
                         }
                     }
                 },

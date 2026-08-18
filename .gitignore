@@ -20,6 +20,7 @@ Thumbs.db
 *.keystore
 keystore.properties
 secrets.properties
+keystore_base64.txt
 
 # Node / server
 node_modules/
