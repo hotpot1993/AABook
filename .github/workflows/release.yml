@@ -38,7 +38,11 @@ jobs:
           } > keystore.properties
 
       - name: Generate secrets.properties
-        run: echo "EXCHANGE_RATE_API_KEY=${{ secrets.EXCHANGE_RATE_API_KEY }}" > secrets.properties
+        run: |
+          {
+            echo "EXCHANGE_RATE_API_KEY=${{ secrets.EXCHANGE_RATE_API_KEY }}"
+            echo "GLM_API_KEY=${{ secrets.GLM_API_KEY }}"
+          } > secrets.properties
 
       - name: Build release APK
         run: |
