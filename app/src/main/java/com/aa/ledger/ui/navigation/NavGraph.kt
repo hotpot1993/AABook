@@ -92,6 +92,14 @@ private fun slideFromRight(initialRoute: String?, targetRoute: String?): Boolean
     return if (isRootTabRoute(targetRoute) && from >= 0 && to >= 0) from <= to else true
 }
 
+// 当前是否已在该标签的「根页面」：重复点击已选中标签时不触发转场
+private fun isOnTabRoot(currentRoute: String?, tab: BottomTab): Boolean = when (tab) {
+    BottomTab.HOME -> currentRoute == Routes.HOME
+    BottomTab.ADD_EXPENSE -> currentRoute == Routes.QUICK_ADD
+    BottomTab.STATS -> currentRoute == Routes.STATS_OVERVIEW
+    BottomTab.SETTINGS -> currentRoute == Routes.SETTINGS
+}
+
 @Composable
 fun NavGraph(
     navController: NavHostController = rememberNavController(),
@@ -292,25 +300,27 @@ fun NavGraph(
             BottomNavBar(
                 currentRoute = currentRoute,
                 onTabClick = { tab ->
-                    when (tab) {
-                        BottomTab.HOME -> {
-                            navController.navigate(Routes.HOME) {
-                                popUpTo(Routes.HOME) { inclusive = true }
+                    if (!isOnTabRoot(currentRoute, tab)) {
+                        when (tab) {
+                            BottomTab.HOME -> {
+                                navController.navigate(Routes.HOME) {
+                                    popUpTo(Routes.HOME) { inclusive = true }
+                                }
                             }
-                        }
-                        BottomTab.ADD_EXPENSE -> {
-                            navController.navigate("add_expense?ledgerId=$lastLedgerId") {
-                                popUpTo(Routes.HOME)
+                            BottomTab.ADD_EXPENSE -> {
+                                navController.navigate("add_expense?ledgerId=$lastLedgerId") {
+                                    popUpTo(Routes.HOME)
+                                }
                             }
-                        }
-                        BottomTab.STATS -> {
-                            navController.navigate(Routes.STATS_OVERVIEW) {
-                                popUpTo(Routes.HOME)
+                            BottomTab.STATS -> {
+                                navController.navigate(Routes.STATS_OVERVIEW) {
+                                    popUpTo(Routes.HOME)
+                                }
                             }
-                        }
-                        BottomTab.SETTINGS -> {
-                            navController.navigate(Routes.SETTINGS) {
-                                popUpTo(Routes.HOME)
+                            BottomTab.SETTINGS -> {
+                                navController.navigate(Routes.SETTINGS) {
+                                    popUpTo(Routes.HOME)
+                                }
                             }
                         }
                     }

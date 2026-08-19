@@ -23,11 +23,6 @@ data class HomeUiState(
 
 enum class HomeFilterMode { ALL, ACTIVE, SETTLED }
 
-private data class SettlementStatus(
-    val isSettled: Boolean,
-    val unpaidAmount: Double
-)
-
 @HiltViewModel
 class HomeViewModel @Inject constructor(
     private val ledgerRepository: LedgerRepository,
@@ -45,10 +40,10 @@ class HomeViewModel @Inject constructor(
                 val settledMap = mutableMapOf<Long, Boolean>()
                 var pendingTotal = 0.0
                 for (ledger in nonArchived) {
-                    val status = checkLedgerSettled(ledger.id, ledger.totalExpense)
+                    val status = settlementRepository.getPendingStatus(ledger.id)
                     settledMap[ledger.id] = status.isSettled
                     if (!status.isSettled) {
-                        pendingTotal += status.unpaidAmount
+                        pendingTotal += status.pendingAmount
                     }
                 }
 
@@ -90,28 +85,16 @@ class HomeViewModel @Inject constructor(
         }
     }
 
-    private suspend fun checkLedgerSettled(ledgerId: Long, totalExpense: Double): SettlementStatus {
-        return try {
-            val entities = settlementRepository.getSettlements(ledgerId).first()
-            if (entities.isEmpty()) return SettlementStatus(false, totalExpense)
-            val allPaid = entities.all { it.isPaid }
-            val unpaidAmount = entities.filter { !it.isPaid }.sumOf { it.amountCny }
-            SettlementStatus(allPaid, unpaidAmount)
-        } catch (_: Exception) {
-            SettlementStatus(false, totalExpense)
-        }
-    }
-
     fun refreshSettlementStatus() {
         viewModelScope.launch {
             val ledgers = _uiState.value.ledgers
             val settledMap = mutableMapOf<Long, Boolean>()
             var pendingTotal = 0.0
             for (ledger in ledgers) {
-                val status = checkLedgerSettled(ledger.id, ledger.totalExpense)
+                val status = settlementRepository.getPendingStatus(ledger.id)
                 settledMap[ledger.id] = status.isSettled
                 if (!status.isSettled) {
-                    pendingTotal += status.unpaidAmount
+                    pendingTotal += status.pendingAmount
                 }
             }
             _uiState.update {

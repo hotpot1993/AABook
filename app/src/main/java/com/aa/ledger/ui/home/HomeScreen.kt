@@ -19,6 +19,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -28,6 +29,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.aa.ledger.domain.model.Ledger
 import com.aa.ledger.ui.common.DeleteConfirmDialog
 import com.aa.ledger.ui.common.SwipeActionRow
+import com.aa.ledger.ui.common.RollingNumber
 import com.aa.ledger.ui.common.bounceClick
 import com.aa.ledger.ui.common.staggerEnter
 import com.aa.ledger.ui.home.HomeFilterMode
@@ -130,12 +132,15 @@ fun HomeScreen(onLedgerClick: (Long, Ledger) -> Unit, onCreateLedger: () -> Unit
                                     fontWeight = FontWeight.Normal
                                 )
                                 Spacer(Modifier.height(6.dp))
-                                Text(
-                                    CurrencyFormatter.formatCny(uiState.pendingTotal),
-                                    color = Color.White,
-                                    fontSize = 30.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    letterSpacing = (-1).sp
+                                RollingNumber(
+                                    value = uiState.pendingTotal,
+                                    format = { CurrencyFormatter.formatCny(it) },
+                                    style = TextStyle(
+                                        color = Color.White,
+                                        fontSize = 30.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        letterSpacing = (-1).sp
+                                    )
                                 )
                                 Spacer(Modifier.height(6.dp))
                                 Text(
