@@ -31,8 +31,8 @@ android {
         applicationId = "com.aa.ledger"
         minSdk = 29
         targetSdk = 34
-        versionCode = 5
-        versionName = "1.5.0"
+        versionCode = 6
+        versionName = "1.5.1"
 
         buildConfigField("String", "EXCHANGE_RATE_API_KEY", "\"$exchangeRateApiKey\"")
         buildConfigField("String", "GLM_API_KEY", "\"$glmApiKey\"")
