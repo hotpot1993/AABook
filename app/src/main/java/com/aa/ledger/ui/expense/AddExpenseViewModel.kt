@@ -61,6 +61,7 @@ data class AddExpenseUiState(
     val isLoading: Boolean = true,
     val isSaving: Boolean = false,
     val isOcrProcessing: Boolean = false,
+    val isAiOcrProcessing: Boolean = false,
     val error: String? = null,
     val savedSuccessfully: Boolean = false,
     val showOcrReview: Boolean = false,
@@ -292,7 +293,35 @@ class AddExpenseViewModel @Inject constructor(
     private fun runOcr(uri: Uri) {
         _uiState.update { it.copy(isOcrProcessing = true) }
         viewModelScope.launch {
-            // 1. 优先用 GLM 视觉大模型做结构化识别
+            // 本地 ML Kit OCR 优先（离线可用）
+            var amount: String? = null
+            var currency: String? = null
+            try {
+                val recognizer = TextRecognition.getClient(ChineseTextRecognizerOptions.Builder().build())
+                val image = InputImage.fromFilePath(appContext, uri)
+                val result = recognizer.process(image).await()
+                val text = result.text
+                android.util.Log.d("OCR", "本地原始识别文本: $text")
+                amount = extractTotalAmountLayout(result) ?: extractTotalAmount(text)
+                currency = extractCurrency(text)
+                android.util.Log.d("OCR", "本地识别金额: $amount, 货币: $currency")
+            } catch (_: Exception) { }
+            // 弹出复核对话框，让用户确认/修改；不满意可点「AI识别」走 GLM 大模型
+            _uiState.update { it.copy(
+                isOcrProcessing = false,
+                showOcrReview = true,
+                ocrReviewAmount = amount ?: "",
+                ocrReviewCurrency = currency,
+                ocrReviewUri = uri
+            ) }
+        }
+    }
+
+    /** 复核弹窗里的「AI识别」：用 GLM 视觉大模型做更精确的结构化识别 */
+    fun runAiOcr() {
+        val uri = _uiState.value.ocrReviewUri ?: return
+        _uiState.update { it.copy(isAiOcrProcessing = true) }
+        viewModelScope.launch {
             val glmReceipt = try {
                 val bytes = appContext.contentResolver.openInputStream(uri)?.use { it.readBytes() }
                 val mime = appContext.contentResolver.getType(uri) ?: "image/jpeg"
@@ -301,43 +330,14 @@ class AddExpenseViewModel @Inject constructor(
             if (glmReceipt != null && glmReceipt.total != null) {
                 val total = glmReceipt.total
                 val amountStr = if (total == total.toLong().toDouble()) total.toLong().toString() else total.toString()
-                android.util.Log.d("OCR", "GLM识别金额: $amountStr, 货币: ${glmReceipt.currency}")
+                android.util.Log.d("OCR", "AI识别金额: $amountStr, 货币: ${glmReceipt.currency}")
                 _uiState.update { it.copy(
-                    isOcrProcessing = false,
-                    showOcrReview = true,
+                    isAiOcrProcessing = false,
                     ocrReviewAmount = amountStr,
-                    ocrReviewCurrency = glmReceipt.currency,
-                    ocrReviewUri = uri
+                    ocrReviewCurrency = glmReceipt.currency
                 ) }
-                return@launch
-            }
-
-            // 2. 回退到 ML Kit 本地 OCR
-            try {
-                val recognizer = TextRecognition.getClient(ChineseTextRecognizerOptions.Builder().build())
-                val image = InputImage.fromFilePath(appContext, uri)
-                val result = recognizer.process(image).await()
-                val text = result.text
-                android.util.Log.d("OCR", "原始识别文本: $text")
-                val amount = extractTotalAmountLayout(result) ?: extractTotalAmount(text)
-                val currency = extractCurrency(text)
-                android.util.Log.d("OCR", "识别金额: $amount, 货币: $currency")
-                // 弹出 OCR 复核对话框，让用户确认/修改金额
-                _uiState.update { it.copy(
-                    isOcrProcessing = false,
-                    showOcrReview = true,
-                    ocrReviewAmount = amount ?: "",
-                    ocrReviewCurrency = currency,
-                    ocrReviewUri = uri
-                ) }
-            } catch (_: Exception) {
-                _uiState.update { it.copy(
-                    isOcrProcessing = false,
-                    showOcrReview = true,
-                    ocrReviewAmount = "",
-                    ocrReviewCurrency = null,
-                    ocrReviewUri = uri
-                ) }
+            } else {
+                _uiState.update { it.copy(isAiOcrProcessing = false) }
             }
         }
     }
@@ -687,10 +687,6 @@ class AddExpenseViewModel @Inject constructor(
             _uiState.update { it.copy(error = "请输入有效金额") }
             return
         }
-        if (state.title.isBlank()) {
-            _uiState.update { it.copy(error = "请输入消费名称") }
-            return
-        }
         if (state.paidByMemberId == null) {
             _uiState.update { it.copy(error = "请选择付款人") }
             return
@@ -723,15 +719,17 @@ class AddExpenseViewModel @Inject constructor(
                     shareValues = shareValues
                 )
 
+                // 消费名称未填写时，默认使用消费分类名
+                val category = if (state.selectedCategory == "__custom__") state.customCategory else state.selectedCategory
                 val expense = Expense(
                     id = if (state.isEditing) state.editingExpenseId ?: 0 else 0,
                     ledgerId = state.selectedLedgerId!!,
-                    title = state.title,
+                    title = state.title.ifBlank { category },
                     totalAmountCny = state.convertedAmountCny,
                     originalCurrency = state.selectedCurrency,
                     originalAmount = amount,
                     exchangeRate = state.exchangeRate,
-                    category = if (state.selectedCategory == "__custom__") state.customCategory else state.selectedCategory,
+                    category = category,
                     paidByMemberId = state.paidByMemberId!!,
                     paidForAll = state.paidForAll,
                     note = state.note,

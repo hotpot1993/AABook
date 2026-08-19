@@ -65,19 +65,11 @@ fun AddExpenseScreen(ledgerId: Long? = null, expenseId: Long? = null, onBack: ()
                 }
             }
 
-            // ═══ 卡片 2：基础信息 ═══
-            Card(shape = RoundedCornerShape(20.dp), colors = CardDefaults.cardColors(containerColor = MontraSurface), elevation = CardDefaults.cardElevation(1.dp)) {
-                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Column { Text("消费名称", style = MaterialTheme.typography.labelMedium, color = MontraTextSecondary); Spacer(Modifier.height(4.dp)); Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(MontraFill).padding(horizontal = 12.dp, vertical = 14.dp)) { if (uiState.title.isEmpty()) Text("输入消费名称", color = MontraTextSecondary, fontSize = 16.sp); BasicTextField(value = uiState.title, onValueChange = { viewModel.updateTitle(it) }, singleLine = true, textStyle = TextStyle(fontSize = 16.sp, color = MontraTextPrimary), modifier = Modifier.fillMaxWidth()) } }
-                    Column { Text("备注（选填）", style = MaterialTheme.typography.labelMedium, color = MontraTextSecondary); Spacer(Modifier.height(4.dp)); Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(MontraFill).padding(horizontal = 12.dp, vertical = 14.dp)) { if (uiState.note.isEmpty()) Text("备注信息", color = MontraTextSecondary, fontSize = 16.sp); BasicTextField(value = uiState.note, onValueChange = { viewModel.updateNote(it) }, singleLine = true, textStyle = TextStyle(fontSize = 16.sp, color = MontraTextPrimary), modifier = Modifier.fillMaxWidth()) } }
-                }
-            }
-
-            // ═══ 卡片 3：小票照片 ═══
+            // ═══ 卡片 2：小票照片 ═══
             Card(shape = RoundedCornerShape(20.dp), colors = CardDefaults.cardColors(containerColor = MontraSurface), elevation = CardDefaults.cardElevation(1.dp)) {
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Text("小票照片", style = MaterialTheme.typography.labelMedium, color = MontraTextSecondary)
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) { OutlinedButton(onClick = { val f = java.io.File(ctx.cacheDir, "receipt_tmp_${System.currentTimeMillis()}.jpg"); pUri = FileProvider.getUriForFile(ctx, "${ctx.packageName}.fileprovider", f); if (ContextCompat.checkSelfPermission(ctx, Manifest.permission.CAMERA) == android.content.pm.PackageManager.PERMISSION_GRANTED) cam.launch(pUri!!) else perm.launch(Manifest.permission.CAMERA) }, shape = RoundedCornerShape(12.dp), border = BorderStroke(1.dp, MontraPrimary)) { Text("拍照", color = MontraPrimary) }; OutlinedButton(onClick = { gal.launch("image/*") }, shape = RoundedCornerShape(12.dp), border = BorderStroke(1.dp, MontraPrimary)) { Text("相册", color = MontraPrimary) } }
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) { OutlinedButton(onClick = { val f = java.io.File(ctx.cacheDir, "receipt_tmp_${System.currentTimeMillis()}.jpg"); pUri = FileProvider.getUriForFile(ctx, "${ctx.packageName}.fileprovider", f); if (ContextCompat.checkSelfPermission(ctx, Manifest.permission.CAMERA) == android.content.pm.PackageManager.PERMISSION_GRANTED) cam.launch(pUri!!) else perm.launch(Manifest.permission.CAMERA) }, modifier = Modifier.weight(1f), shape = RoundedCornerShape(12.dp), border = BorderStroke(1.dp, MontraPrimary)) { Text("拍照", color = MontraPrimary) }; OutlinedButton(onClick = { gal.launch("image/*") }, modifier = Modifier.weight(1f), shape = RoundedCornerShape(12.dp), border = BorderStroke(1.dp, MontraPrimary)) { Text("相册", color = MontraPrimary) } }
                     uiState.receiptUri?.let { uri ->
                         var showPreview by remember { mutableStateOf(false) }
                         Row(
@@ -114,16 +106,7 @@ fun AddExpenseScreen(ledgerId: Long? = null, expenseId: Long? = null, onBack: ()
                 }
             }
 
-            // ═══ 卡片 4：分类 ═══
-            Card(shape = RoundedCornerShape(20.dp), colors = CardDefaults.cardColors(containerColor = MontraSurface), elevation = CardDefaults.cardElevation(1.dp)) {
-                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Text("消费分类", style = MaterialTheme.typography.labelMedium, color = MontraTextSecondary)
-                    androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) { viewModel.categories.forEach { cat -> val lbl = if (cat == "__custom__") "自定义" else cat; val sel = uiState.selectedCategory == cat; ChipTag(lbl, sel) { viewModel.updateCategory(cat) } } }
-                    if (uiState.selectedCategory == "__custom__") Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(MontraFill).padding(horizontal = 12.dp, vertical = 14.dp)) { if (uiState.customCategory.isEmpty()) Text("自定义分类名称", color = MontraTextSecondary); BasicTextField(value = uiState.customCategory, onValueChange = { viewModel.updateCustomCategory(it) }, singleLine = true, textStyle = TextStyle(fontSize = 16.sp, color = MontraTextPrimary), modifier = Modifier.fillMaxWidth()) }
-                }
-            }
-
-            // ═══ 卡片 4：人员+分摊 ═══
+            // ═══ 卡片 3：付款人 + 参与人 ═══
             Card(shape = RoundedCornerShape(20.dp), colors = CardDefaults.cardColors(containerColor = MontraSurface), elevation = CardDefaults.cardElevation(1.dp)) {
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
                     Text("付款人", style = MaterialTheme.typography.labelMedium, color = MontraTextSecondary)
@@ -139,6 +122,23 @@ fun AddExpenseScreen(ledgerId: Long? = null, expenseId: Long? = null, onBack: ()
                     when (uiState.shareType) { ShareType.SHARES -> uiState.selectedMemberIds.toList().forEach { mid -> val m = uiState.members.find { it.id == mid } ?: return@forEach; val v = uiState.shareValues[mid] ?: 1.0; ShareRow(name = m.nickname.ifEmpty { m.name }, value = if (v == v.toLong().toDouble()) v.toLong().toString() else v.toString(), placeholder = "份数", onChange = { viewModel.updateShareValue(mid, it.toDoubleOrNull() ?: 0.0) }) }; ShareType.CUSTOM -> uiState.selectedMemberIds.toList().forEach { mid -> val m = uiState.members.find { it.id == mid } ?: return@forEach; val v = uiState.shareValues[mid] ?: 0.0; ShareRow(name = m.nickname.ifEmpty { m.name }, value = if (v == 0.0) "" else "%.2f".format(v), placeholder = "金额(¥)", onChange = { viewModel.updateShareValue(mid, it.toDoubleOrNull() ?: 0.0) }) }; ShareType.PERCENTAGE -> uiState.selectedMemberIds.toList().forEach { mid -> val m = uiState.members.find { it.id == mid } ?: return@forEach; val v = uiState.shareValues[mid] ?: 0.0; ShareRow(name = m.nickname.ifEmpty { m.name }, value = if (v == 0.0) "" else "%.1f".format(v), placeholder = "%", onChange = { viewModel.updateShareValue(mid, it.toDoubleOrNull() ?: 0.0) }) }; else -> {} }
                 }
             }
+
+            // ═══ 卡片 4：消费分类 ═══
+            Card(shape = RoundedCornerShape(20.dp), colors = CardDefaults.cardColors(containerColor = MontraSurface), elevation = CardDefaults.cardElevation(1.dp)) {
+                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text("消费分类", style = MaterialTheme.typography.labelMedium, color = MontraTextSecondary)
+                    androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) { viewModel.categories.forEach { cat -> val lbl = if (cat == "__custom__") "自定义" else cat; val sel = uiState.selectedCategory == cat; ChipTag(lbl, sel) { viewModel.updateCategory(cat) } } }
+                    if (uiState.selectedCategory == "__custom__") Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(MontraFill).padding(horizontal = 12.dp, vertical = 14.dp)) { if (uiState.customCategory.isEmpty()) Text("自定义分类名称", color = MontraTextSecondary); BasicTextField(value = uiState.customCategory, onValueChange = { viewModel.updateCustomCategory(it) }, singleLine = true, textStyle = TextStyle(fontSize = 16.sp, color = MontraTextPrimary), modifier = Modifier.fillMaxWidth()) }
+                }
+            }
+
+            // ═══ 卡片 5：消费名称 + 备注 ═══
+            Card(shape = RoundedCornerShape(20.dp), colors = CardDefaults.cardColors(containerColor = MontraSurface), elevation = CardDefaults.cardElevation(1.dp)) {
+                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Column { Text("消费名称", style = MaterialTheme.typography.labelMedium, color = MontraTextSecondary); Spacer(Modifier.height(4.dp)); Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(MontraFill).padding(horizontal = 12.dp, vertical = 14.dp)) { if (uiState.title.isEmpty()) Text("输入消费名称", color = MontraTextSecondary, fontSize = 16.sp); BasicTextField(value = uiState.title, onValueChange = { viewModel.updateTitle(it) }, singleLine = true, textStyle = TextStyle(fontSize = 16.sp, color = MontraTextPrimary), modifier = Modifier.fillMaxWidth()) } }
+                    Column { Text("备注（选填）", style = MaterialTheme.typography.labelMedium, color = MontraTextSecondary); Spacer(Modifier.height(4.dp)); Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(MontraFill).padding(horizontal = 12.dp, vertical = 14.dp)) { if (uiState.note.isEmpty()) Text("备注信息", color = MontraTextSecondary, fontSize = 16.sp); BasicTextField(value = uiState.note, onValueChange = { viewModel.updateNote(it) }, singleLine = true, textStyle = TextStyle(fontSize = 16.sp, color = MontraTextPrimary), modifier = Modifier.fillMaxWidth()) } }
+                }
+            }
             Spacer(Modifier.height(32.dp))
         }
 
@@ -152,25 +152,35 @@ fun AddExpenseScreen(ledgerId: Long? = null, expenseId: Long? = null, onBack: ()
                 text = {
                     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                         Text("小票已拍摄，请确认或修改下方金额：", color = MontraTextSecondary, fontSize = 14.sp)
+                        OutlinedTextField(
+                            value = editAmount,
+                            onValueChange = { editAmount = it },
+                            label = { Text("实际金额") },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(12.dp),
+                            textStyle = TextStyle(fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold, fontSize = 24.sp)
+                        )
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            OutlinedTextField(
-                                value = editAmount,
-                                onValueChange = { editAmount = it },
-                                label = { Text("实际金额") },
-                                singleLine = true,
+                            Button(
+                                onClick = { viewModel.runAiOcr() },
+                                enabled = !uiState.isAiOcrProcessing,
                                 modifier = Modifier.weight(1f),
                                 shape = RoundedCornerShape(12.dp),
-                                textStyle = TextStyle(fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold, fontSize = 24.sp)
-                            )
+                                colors = ButtonDefaults.buttonColors(containerColor = InfoBlue, contentColor = Color.White)
+                            ) {
+                                if (uiState.isAiOcrProcessing) CircularProgressIndicator(Modifier.size(16.dp), color = Color.White, strokeWidth = 2.dp)
+                                else Text("AI识别", fontWeight = FontWeight.SemiBold)
+                            }
                             Button(
                                 onClick = { viewModel.confirmOcrAmount(editAmount) },
-                                modifier = Modifier.padding(top = 8.dp),
+                                modifier = Modifier.weight(1f),
                                 shape = RoundedCornerShape(12.dp),
                                 colors = ButtonDefaults.buttonColors(containerColor = MontraPrimary)
                             ) { Text("确认", fontWeight = FontWeight.SemiBold) }
                         }
                         if (uiState.ocrReviewAmount.isEmpty()) {
-                            Text("未自动识别到金额，请手动输入", color = MontraRed, fontSize = 12.sp)
+                            Text("未自动识别到金额，请手动输入或点「AI识别」", color = MontraRed, fontSize = 12.sp)
                         } else {
                             Text(
                                 "已识别：¥${uiState.ocrReviewAmount}" + (uiState.ocrReviewCurrency?.let { "（$it）" } ?: ""),
@@ -185,7 +195,7 @@ fun AddExpenseScreen(ledgerId: Long? = null, expenseId: Long? = null, onBack: ()
                     Button(
                         onClick = { viewModel.dismissOcrReview() },
                         shape = RoundedCornerShape(12.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = MontraFill, contentColor = MontraTextSecondary)
+                        colors = ButtonDefaults.buttonColors(containerColor = MontraRed, contentColor = Color.White)
                     ) { Text("放弃", fontWeight = FontWeight.Medium) }
                 }
             )
