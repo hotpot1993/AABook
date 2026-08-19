@@ -4,6 +4,7 @@ import java.util.Properties
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
+    id("org.jetbrains.kotlin.plugin.compose")
     id("com.google.dagger.hilt.android")
     id("com.google.devtools.ksp")
 }
@@ -80,10 +81,6 @@ android {
         buildConfig = true
     }
 
-    composeOptions {
-        kotlinCompilerExtensionVersion = "1.5.8"
-    }
-
     packaging {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
@@ -93,7 +90,7 @@ android {
 
 dependencies {
     // Compose BOM
-    val composeBom = platform("androidx.compose:compose-bom:2024.06.00")
+    val composeBom = platform("androidx.compose:compose-bom:2025.01.00")
     implementation(composeBom)
 
     // Compose UI
@@ -111,7 +108,7 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.7.0")
 
     // Navigation Compose
-    implementation("androidx.navigation:navigation-compose:2.7.7")
+    implementation("androidx.navigation:navigation-compose:2.8.0")
 
     // Room
     implementation("androidx.room:room-runtime:2.6.1")
@@ -119,8 +116,8 @@ dependencies {
     ksp("androidx.room:room-compiler:2.6.1")
 
     // Hilt
-    implementation("com.google.dagger:hilt-android:2.50")
-    ksp("com.google.dagger:hilt-android-compiler:2.50")
+    implementation("com.google.dagger:hilt-android:2.51.1")
+    ksp("com.google.dagger:hilt-android-compiler:2.51.1")
     implementation("androidx.hilt:hilt-navigation-compose:1.1.0")
 
     // Glance (Widget)

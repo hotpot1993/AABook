@@ -16,6 +16,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.aa.ledger.ui.common.bounceClick
 import com.aa.ledger.ui.theme.*
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -81,7 +82,7 @@ fun AdminScreen(
                             }
                             if (!user.isAdmin) {
                                 Surface(
-                                    onClick = { viewModel.deleteUser(user.id) },
+                                    modifier = Modifier.bounceClick(onClick = { viewModel.deleteUser(user.id) }),
                                     shape = RoundedCornerShape(8.dp),
                                     color = MontraRed.copy(alpha = 0.1f)
                                 ) {

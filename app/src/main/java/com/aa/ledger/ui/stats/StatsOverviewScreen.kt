@@ -17,6 +17,8 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.aa.ledger.domain.model.Ledger
 import com.aa.ledger.ui.home.HomeViewModel
+import com.aa.ledger.ui.common.bounceClick
+import com.aa.ledger.ui.common.staggerEnter
 import com.aa.ledger.ui.theme.*
 import com.aa.ledger.util.CurrencyFormatter
 
@@ -65,7 +67,8 @@ fun StatsOverviewScreen(
                     val ledger = ledgers[index]
                     StatsLedgerCard(
                         ledger = ledger,
-                        onClick = { onLedgerStatsClick(ledger.id) }
+                        onClick = { onLedgerStatsClick(ledger.id) },
+                        modifier = Modifier.staggerEnter(index)
                     )
                 }
             }
@@ -82,7 +85,7 @@ private fun StatsLedgerCard(
     Surface(
         modifier = modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick),
+            .bounceClick(onClick = onClick),
         shape = RoundedCornerShape(20.dp),
         color = MontraSurface,
         shadowElevation = 1.dp

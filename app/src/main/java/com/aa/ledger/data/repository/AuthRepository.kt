@@ -3,11 +3,12 @@ package com.aa.ledger.data.repository
 import android.content.Context
 import android.content.SharedPreferences
 import androidx.security.crypto.EncryptedSharedPreferences
-import androidx.security.crypto.MasterKeys
+import androidx.security.crypto.MasterKey
 import com.aa.ledger.data.remote.CloudApi
 import com.aa.ledger.data.remote.dto.*
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.OkHttpClient
+import okhttp3.RequestBody.Companion.toRequestBody
 import dagger.hilt.android.qualifiers.ApplicationContext
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
@@ -42,11 +43,13 @@ class AuthRepository @Inject constructor(
 
     private val prefs: SharedPreferences by lazy {
         try {
-            val masterKey = MasterKeys.getOrCreate(MasterKeys.AES256_GCM_SPEC)
+            val masterKey = MasterKey.Builder(context)
+                .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
+                .build()
             EncryptedSharedPreferences.create(
+                context,
                 "aa_ledger_secure_prefs",
                 masterKey,
-                context,
                 EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
                 EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
             )
@@ -113,7 +116,7 @@ class AuthRepository @Inject constructor(
 
     suspend fun uploadBackup(zip: ByteArray, isFull: Boolean, baseRevision: Long): Result<Long> {
         return try {
-            val body = okhttp3.RequestBody.create("application/zip".toMediaTypeOrNull()!!, zip)
+            val body = zip.toRequestBody("application/zip".toMediaTypeOrNull())
             val mode = if (isFull) "full" else "delta"
             val response = api.uploadBackup("Bearer $token", mode, baseRevision, body)
             if (response.isSuccessful) {

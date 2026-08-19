@@ -20,6 +20,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.aa.ledger.ui.common.bounceClick
 import com.aa.ledger.ui.theme.*
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -103,15 +104,14 @@ fun CreateLedgerScreen(
                     ledgerTypes.forEach { (type, label, icon) ->
                         val isSelected = selectedType == type
                         Surface(
-                            onClick = { selectedType = type },
+                            modifier = Modifier.weight(1f).fillMaxHeight().bounceClick(onClick = { selectedType = type }),
                             shape = RoundedCornerShape(14.dp),
                             color = when {
                                 isSelected -> MontraPrimary
                                 type == "orange" -> WarningOrangeBg
                                 type == "blue" -> InfoBlueBg
                                 else -> GreenBg
-                            },
-                            modifier = Modifier.weight(1f).fillMaxHeight()
+                            }
                         ) {
                             Column(
                                 Modifier.fillMaxSize(),
@@ -176,12 +176,12 @@ fun CreateLedgerScreen(
                     )
                     Spacer(Modifier.width(8.dp))
                     Surface(
-                        onClick = {
+                        modifier = Modifier.bounceClick(onClick = {
                             if (memberInput.isNotBlank()) {
                                 members = members + memberInput.trim()
                                 memberInput = ""
                             }
-                        },
+                        }),
                         shape = RoundedCornerShape(14.dp),
                         color = MontraPrimary
                     ) {
@@ -233,7 +233,7 @@ fun CreateLedgerScreen(
                     commonCurrencies.take(4).forEach { (code, label) ->
                         val isSel = selectedCurrency == code
                         Surface(
-                            onClick = { selectedCurrency = code },
+                            modifier = Modifier.bounceClick(onClick = { selectedCurrency = code }),
                             shape = RoundedCornerShape(12.dp),
                             color = if (isSel) MontraPrimary else MontraFill
                         ) {
@@ -254,7 +254,7 @@ fun CreateLedgerScreen(
                     commonCurrencies.drop(4).forEach { (code, label) ->
                         val isSel = selectedCurrency == code
                         Surface(
-                            onClick = { selectedCurrency = code },
+                            modifier = Modifier.bounceClick(onClick = { selectedCurrency = code }),
                             shape = RoundedCornerShape(12.dp),
                             color = if (isSel) MontraPrimary else MontraFill
                         ) {

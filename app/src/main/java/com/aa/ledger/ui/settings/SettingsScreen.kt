@@ -8,7 +8,8 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.outlined.Logout
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -24,6 +25,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.aa.ledger.BuildConfig
+import com.aa.ledger.ui.common.bounceClick
 import com.aa.ledger.ui.theme.*
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -51,7 +53,7 @@ fun SettingsScreen(onBack: (() -> Unit)? = null, onCloudLogin: () -> Unit = {}, 
                 },
                 navigationIcon = {
                     if (onBack != null) {
-                        IconButton(onClick = onBack) { Icon(Icons.Filled.ArrowBack, "返回") }
+                        IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "返回") }
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = MontraBackground)
@@ -92,7 +94,7 @@ fun SettingsScreen(onBack: (() -> Unit)? = null, onCloudLogin: () -> Unit = {}, 
                 ) {
                     // Refresh button
                     Surface(
-                        onClick = { viewModel.refreshExchangeRates() },
+                        modifier = Modifier.bounceClick(onClick = { viewModel.refreshExchangeRates() }),
                         shape = RoundedCornerShape(14.dp),
                         color = Color(0xFF1A7FDB)
                     ) {
@@ -171,10 +173,9 @@ fun SettingsScreen(onBack: (() -> Unit)? = null, onCloudLogin: () -> Unit = {}, 
                         ) {
                             // Upload button
                             Surface(
-                                onClick = { viewModel.syncToCloud() },
+                                modifier = Modifier.weight(1f).bounceClick(onClick = { viewModel.syncToCloud() }),
                                 shape = RoundedCornerShape(10.dp),
-                                color = MontraPrimary,
-                                modifier = Modifier.weight(1f)
+                                color = MontraPrimary
                             ) {
                                 Row(
                                     Modifier.padding(vertical = 10.dp),
@@ -188,10 +189,9 @@ fun SettingsScreen(onBack: (() -> Unit)? = null, onCloudLogin: () -> Unit = {}, 
                             }
                             // Download button
                             Surface(
-                                onClick = { viewModel.pullFromCloud() },
+                                modifier = Modifier.weight(1f).bounceClick(onClick = { viewModel.pullFromCloud() }),
                                 shape = RoundedCornerShape(10.dp),
-                                color = InfoBlue,
-                                modifier = Modifier.weight(1f)
+                                color = InfoBlue
                             ) {
                                 Row(
                                     Modifier.padding(vertical = 10.dp),
@@ -236,7 +236,7 @@ fun SettingsScreen(onBack: (() -> Unit)? = null, onCloudLogin: () -> Unit = {}, 
                         }
                         // Logout
                         SettingsRow(
-                            icon = Icons.Outlined.Logout,
+                            icon = Icons.AutoMirrored.Outlined.Logout,
                             iconBg = MontraRed.copy(alpha = 0.1f),
                             iconTint = MontraRed,
                             title = "退出登录",
@@ -316,7 +316,7 @@ private fun SettingsRow(
         Modifier
             .fillMaxWidth()
             .then(
-                if (onClick != null) Modifier.clickable(onClick = onClick)
+                if (onClick != null) Modifier.bounceClick(onClick = onClick)
                 else Modifier
             )
             .padding(horizontal = 20.dp, vertical = 16.dp),

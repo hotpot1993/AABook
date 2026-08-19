@@ -1,6 +1,6 @@
 package com.aa.ledger.ui.common
 
-import androidx.compose.animation.core.Animatable; import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.Animatable
 import androidx.compose.foundation.*; import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.*; import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons; import androidx.compose.material.icons.outlined.Delete; import androidx.compose.material.icons.outlined.Edit
@@ -41,10 +41,10 @@ fun SwipeActionRow(
         ) {
             val cr = cornerRadius
             if (onEdit != null) ActionButton("编辑", SystemBlue, Icons.Outlined.Edit, singleWidthDp, cornerRadius = cr, onClick = {
-                scope.launch { offset.animateTo(0f, spring()) }; onEdit()
+                scope.launch { offset.animateTo(0f, AnimSpec.SnapSpring) }; onEdit()
             })
             if (onDelete != null) ActionButton("删除", SystemRed, Icons.Outlined.Delete, singleWidthDp, cornerRadius = cr, onClick = {
-                scope.launch { offset.animateTo(0f, spring()) }; onDelete()
+                scope.launch { offset.animateTo(0f, AnimSpec.SnapSpring) }; onDelete()
             })
         }
 
@@ -58,8 +58,8 @@ fun SwipeActionRow(
                     detectHorizontalDragGestures(
                         onDragEnd = {
                             scope.launch {
-                                if (offset.value < -actionWidthPx * 0.35f) offset.animateTo(-actionWidthPx, spring())
-                                else offset.animateTo(0f, spring())
+                                if (offset.value < -actionWidthPx * 0.35f) offset.animateTo(-actionWidthPx, AnimSpec.SnapSpring)
+                                else offset.animateTo(0f, AnimSpec.SnapSpring)
                             }
                         },
                         onHorizontalDrag = { _, dragAmount ->

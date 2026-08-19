@@ -28,6 +28,8 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.aa.ledger.domain.model.Ledger
 import com.aa.ledger.ui.common.DeleteConfirmDialog
 import com.aa.ledger.ui.common.SwipeActionRow
+import com.aa.ledger.ui.common.bounceClick
+import com.aa.ledger.ui.common.staggerEnter
 import com.aa.ledger.ui.home.HomeFilterMode
 import com.aa.ledger.ui.theme.*
 import com.aa.ledger.util.CurrencyFormatter
@@ -164,7 +166,7 @@ fun HomeScreen(onLedgerClick: (Long, Ledger) -> Unit, onCreateLedger: () -> Unit
                         )
                         // Pill-shaped "新建账本" button
                         Surface(
-                            onClick = onCreateLedger,
+                            modifier = Modifier.bounceClick(onClick = onCreateLedger),
                             shape = RoundedCornerShape(100.dp),
                             color = MontraPrimary
                         ) {
@@ -192,7 +194,7 @@ fun HomeScreen(onLedgerClick: (Long, Ledger) -> Unit, onCreateLedger: () -> Unit
                             }
                             val isSel = uiState.filterMode == mode
                             Surface(
-                                onClick = { viewModel.setFilterMode(mode) },
+                                modifier = Modifier.bounceClick(onClick = { viewModel.setFilterMode(mode) }),
                                 shape = RoundedCornerShape(100.dp),
                                 color = if (isSel) MontraPrimary else MontraFill
                             ) {
@@ -215,7 +217,7 @@ fun HomeScreen(onLedgerClick: (Long, Ledger) -> Unit, onCreateLedger: () -> Unit
                     val ledger = displayLedgers[i]
                     val isSettled = uiState.ledgerSettledMap[ledger.id] ?: false
                     val isArchived = ledger.isArchived
-                    Box(modifier = Modifier.padding(horizontal = 24.dp)) {
+                    Box(modifier = Modifier.padding(horizontal = 24.dp).staggerEnter(i)) {
                         val isDefault = ledger.id == uiState.defaultLedgerId
                         SwipeActionRow(
                             onEdit = null,

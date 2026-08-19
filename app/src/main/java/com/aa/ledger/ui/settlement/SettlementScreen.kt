@@ -22,6 +22,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.aa.ledger.ui.common.bounceClick
+import com.aa.ledger.ui.common.staggerEnter
 import com.aa.ledger.ui.theme.*
 import com.aa.ledger.util.CurrencyFormatter
 import com.aa.ledger.util.ShareUtil
@@ -324,7 +326,7 @@ fun SettlementScreen(ledgerId: Long, onBack: () -> Unit, viewModel: SettlementVi
                         val st = transfers[i]
                         val tx = st.transaction
                         Surface(
-                            Modifier.fillMaxWidth(),
+                            Modifier.fillMaxWidth().staggerEnter(i),
                             shape = RoundedCornerShape(20.dp),
                             color = MontraSurface,
                             shadowElevation = 1.dp
@@ -381,7 +383,7 @@ fun SettlementScreen(ledgerId: Long, onBack: () -> Unit, viewModel: SettlementVi
                                 if (!st.isPaid) {
                                     Spacer(Modifier.height(12.dp))
                                     Surface(
-                                        onClick = { viewModel.markAsPaid(i) },
+                                        modifier = Modifier.bounceClick(onClick = { viewModel.markAsPaid(i) }),
                                         shape = RoundedCornerShape(12.dp),
                                         color = MontraFill
                                     ) {
@@ -420,10 +422,9 @@ fun SettlementScreen(ledgerId: Long, onBack: () -> Unit, viewModel: SettlementVi
                         horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         Surface(
-                            onClick = { ShareUtil.copyToClipboard(ctx, uiState.shareText) },
+                            modifier = Modifier.weight(1f).bounceClick(onClick = { ShareUtil.copyToClipboard(ctx, uiState.shareText) }),
                             shape = RoundedCornerShape(16.dp),
-                            color = MontraSurface,
-                            modifier = Modifier.weight(1f)
+                            color = MontraSurface
                         ) {
                             Row(
                                 Modifier.fillMaxWidth().padding(vertical = 16.dp),
@@ -436,13 +437,12 @@ fun SettlementScreen(ledgerId: Long, onBack: () -> Unit, viewModel: SettlementVi
                             }
                         }
                         Surface(
-                            onClick = {
+                            modifier = Modifier.weight(1f).bounceClick(onClick = {
                                 val bm = ShareUtil.generateSettlementImage(uiState.result!!)
                                 ctx.startActivity(Intent.createChooser(ShareUtil.shareImage(ctx, bm), "分享结算报告"))
-                            },
+                            }),
                             shape = RoundedCornerShape(16.dp),
-                            color = MontraTextPrimary,
-                            modifier = Modifier.weight(1f)
+                            color = MontraTextPrimary
                         ) {
                             Row(
                                 Modifier.fillMaxWidth().padding(vertical = 16.dp),
@@ -458,13 +458,12 @@ fun SettlementScreen(ledgerId: Long, onBack: () -> Unit, viewModel: SettlementVi
                     Spacer(Modifier.height(10.dp))
                     // Secondary row: PDF export
                     Surface(
-                        onClick = {
+                        modifier = Modifier.fillMaxWidth().bounceClick(onClick = {
                             val intent = ShareUtil.generateAndSharePdf(ctx, uiState.result!!)
                             ctx.startActivity(Intent.createChooser(intent, "导出 PDF 结算报告"))
-                        },
+                        }),
                         shape = RoundedCornerShape(16.dp),
-                        color = MontraPrimary,
-                        modifier = Modifier.fillMaxWidth()
+                        color = MontraPrimary
                     ) {
                         Row(
                             Modifier.fillMaxWidth().padding(vertical = 14.dp),

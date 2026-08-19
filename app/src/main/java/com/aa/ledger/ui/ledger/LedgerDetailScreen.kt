@@ -25,6 +25,9 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.aa.ledger.domain.model.Expense
 import com.aa.ledger.ui.common.DeleteConfirmDialog
+import com.aa.ledger.ui.common.bounceClick
+import com.aa.ledger.ui.common.bounceCombinedClickable
+import com.aa.ledger.ui.common.staggerEnter
 import com.aa.ledger.ui.theme.*
 import com.aa.ledger.util.CurrencyFormatter
 import java.text.SimpleDateFormat
@@ -75,7 +78,7 @@ fun LedgerDetailScreen(
             ) {
                 // Back button
                 Surface(
-                    onClick = onBack,
+                    modifier = Modifier.bounceClick(onClick = onBack),
                     shape = CircleShape,
                     color = MontraSurface,
                     shadowElevation = 1.dp
@@ -103,7 +106,7 @@ fun LedgerDetailScreen(
                 }
                 // Add member button
                 Surface(
-                    onClick = onManageMembers,
+                    modifier = Modifier.bounceClick(onClick = onManageMembers),
                     shape = CircleShape,
                     color = MontraSurface,
                     shadowElevation = 1.dp
@@ -196,7 +199,7 @@ fun LedgerDetailScreen(
                             color = WarningOrange
                         )
                         Surface(
-                            onClick = onSettlement,
+                            modifier = Modifier.bounceClick(onClick = onSettlement),
                             shape = RoundedCornerShape(100.dp),
                             color = MontraPrimary
                         ) {
@@ -234,7 +237,7 @@ fun LedgerDetailScreen(
                             .clip(RoundedCornerShape(8.dp))
                             .then(
                                 if (isActive) Modifier.background(Color.White)
-                                else Modifier.clickable { selectedTab = index }
+                                else Modifier.bounceClick { selectedTab = index }
                             )
                             .then(
                                 if (!isActive) Modifier.background(Color.Transparent)
@@ -449,7 +452,8 @@ private fun ExpenseTabContent(
                     @OptIn(ExperimentalFoundationApi::class)
                     Surface(
                         Modifier.fillMaxWidth()
-                            .combinedClickable(
+                            .staggerEnter(i)
+                            .bounceCombinedClickable(
                                 onClick = { onEditExpense(e.id) },
                                 onLongClick = { onDeleteExpense(e) }
                             ),
@@ -523,7 +527,7 @@ private fun MemberBillTabContent(
                 val avatarBg = avatarColors[i % avatarColors.size]
 
                 Surface(
-                    Modifier.fillMaxWidth(),
+                    Modifier.fillMaxWidth().staggerEnter(i),
                     shape = RoundedCornerShape(16.dp),
                     color = MontraSurface,
                     shadowElevation = 1.dp

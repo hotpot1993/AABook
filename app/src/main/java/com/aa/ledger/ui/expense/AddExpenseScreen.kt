@@ -3,12 +3,12 @@ package com.aa.ledger.ui.expense
 import android.Manifest; import android.net.Uri; import androidx.activity.compose.rememberLauncherForActivityResult; import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.*; import androidx.compose.foundation.layout.*; import androidx.compose.foundation.lazy.LazyRow; import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape; import androidx.compose.foundation.shape.RoundedCornerShape; import androidx.compose.foundation.text.BasicTextField; import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material.icons.Icons; import androidx.compose.material.icons.filled.*; import androidx.compose.material.icons.outlined.*
+import androidx.compose.material.icons.Icons; import androidx.compose.material.icons.automirrored.filled.ArrowBack; import androidx.compose.material.icons.filled.*; import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*; import androidx.compose.runtime.*; import androidx.compose.ui.Alignment; import androidx.compose.ui.Modifier; import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color; import androidx.compose.ui.layout.ContentScale; import androidx.compose.ui.platform.LocalContext; import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily; import androidx.compose.ui.text.font.FontWeight; import androidx.compose.ui.text.input.KeyboardType; import androidx.compose.ui.unit.dp; import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat; import androidx.core.content.FileProvider; import androidx.hilt.navigation.compose.hiltViewModel
-import com.aa.ledger.data.repository.CurrencyGroup; import com.aa.ledger.domain.model.ShareType; import com.aa.ledger.ui.theme.*; import java.io.File
+import com.aa.ledger.data.repository.CurrencyGroup; import com.aa.ledger.domain.model.ShareType; import com.aa.ledger.ui.common.bounceClick; import com.aa.ledger.ui.theme.*; import java.io.File
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
@@ -23,12 +23,11 @@ fun AddExpenseScreen(ledgerId: Long? = null, expenseId: Long? = null, onBack: ()
         topBar = {
             TopAppBar(
                 title = { Text(if (uiState.isEditing) "编辑消费" else "添加账单", fontWeight = FontWeight.SemiBold, fontSize = 18.sp) },
-                navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.Filled.ArrowBack, "返回") } },
+                navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "返回") } },
                 actions = {
                     Box(modifier = Modifier.padding(end = 16.dp)) {
                         Surface(
-                        onClick = { viewModel.saveExpense() },
-                        enabled = !uiState.isSaving,
+                        modifier = Modifier.bounceClick(enabled = !uiState.isSaving, onClick = { viewModel.saveExpense() }),
                         shape = RoundedCornerShape(100.dp),
                         color = MontraPrimary
                     ) {
@@ -58,7 +57,7 @@ fun AddExpenseScreen(ledgerId: Long? = null, expenseId: Long? = null, onBack: ()
                         Box(Modifier.weight(1f)) { BasicTextField(value = uiState.amount, onValueChange = { viewModel.updateAmount(it) }, singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal), textStyle = TextStyle(fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold, fontSize = 32.sp, color = MontraTextPrimary), decorationBox = { inner -> Box { if (uiState.amount.isEmpty()) Text("0.00", fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold, fontSize = 32.sp, color = MontraTextSecondary); inner() } }) }
                         Spacer(Modifier.width(8.dp)); var ce by remember { mutableStateOf(false) }
                         ExposedDropdownMenuBox(expanded = ce, onExpandedChange = { ce = it }) {
-                            OutlinedTextField(value = uiState.selectedCurrency, onValueChange = {}, readOnly = true, singleLine = true, trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(ce) }, modifier = Modifier.menuAnchor().width(110.dp), textStyle = MaterialTheme.typography.bodySmall, shape = RoundedCornerShape(12.dp))
+                            OutlinedTextField(value = uiState.selectedCurrency, onValueChange = {}, readOnly = true, singleLine = true, trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(ce) }, modifier = Modifier.menuAnchor(MenuAnchorType.PrimaryNotEditable).width(110.dp), textStyle = MaterialTheme.typography.bodySmall, shape = RoundedCornerShape(12.dp))
                             ExposedDropdownMenu(expanded = ce, onDismissRequest = { ce = false }, modifier = Modifier.width(240.dp).heightIn(max = 320.dp)) { uiState.availableCurrencies.forEach { g: CurrencyGroup -> HorizontalDivider(color = MontraDivider); Text(g.region, Modifier.padding(horizontal = 16.dp, vertical = 6.dp), style = MaterialTheme.typography.labelSmall, color = MontraPrimary, fontWeight = FontWeight.Bold); g.currencies.forEach { p -> DropdownMenuItem(text = { Row { Text(p.first, fontWeight = FontWeight.Bold, modifier = Modifier.width(56.dp)); Text(p.second, color = MontraTextSecondary) } }, onClick = { viewModel.updateCurrency(p.first); ce = false }) } } }
                         }
                     }
@@ -82,7 +81,7 @@ fun AddExpenseScreen(ledgerId: Long? = null, expenseId: Long? = null, onBack: ()
                     uiState.receiptUri?.let { uri ->
                         var showPreview by remember { mutableStateOf(false) }
                         Row(
-                            Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(MontraFill).padding(8.dp).clickable { showPreview = true },
+                            Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(MontraFill).padding(8.dp).bounceClick { showPreview = true },
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             coil.compose.AsyncImage(model = uri, contentDescription = "小票", modifier = Modifier.size(56.dp).clip(RoundedCornerShape(8.dp)), contentScale = ContentScale.Crop)
@@ -198,7 +197,7 @@ fun AddExpenseScreen(ledgerId: Long? = null, expenseId: Long? = null, onBack: ()
     val bg = if (selected) MontraPrimary else MontraSurface
     val border = if (selected) MontraPrimary else MontraDivider
     val shape = RoundedCornerShape(20.dp)
-    Box(Modifier.clip(shape).background(bg).border(1.dp, border, shape).clickable(onClick = onClick).padding(start = 6.dp, end = 14.dp, top = 8.dp, bottom = 8.dp)) {
+    Box(Modifier.clip(shape).background(bg).border(1.dp, border, shape).bounceClick(onClick = onClick).padding(start = 6.dp, end = 14.dp, top = 8.dp, bottom = 8.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Box(Modifier.size(22.dp).clip(CircleShape).background(if (selected) Color.White.copy(alpha = 0.3f) else MontraFill), contentAlignment = Alignment.Center) {
                 if (selected) Icon(Icons.Filled.Check, null, Modifier.size(14.dp), tint = Color.White)
@@ -216,8 +215,8 @@ fun AddExpenseScreen(ledgerId: Long? = null, expenseId: Long? = null, onBack: ()
     val shape = RoundedCornerShape(20.dp)
     val bg = if (selected) MontraPrimary else MontraSurface
     val bd = if (selected) MontraPrimary else MontraDivider
-    Box(Modifier.clip(shape).background(bg).border(1.dp, bd, shape).clickable(onClick = onClick).padding(horizontal = 14.dp, vertical = 8.dp)) {
+    Box(Modifier.clip(shape).background(bg).border(1.dp, bd, shape).bounceClick(onClick = onClick).padding(horizontal = 14.dp, vertical = 8.dp)) {
         Text(label, color = if (selected) Color.White else MontraTextPrimary, style = MaterialTheme.typography.labelLarge)
     }
 }
-@OptIn(ExperimentalMaterial3Api::class) @Composable fun LedgerSelector(ledgers: List<com.aa.ledger.domain.model.Ledger>, selectedId: Long?, onSelect: (Long) -> Unit) { var e by remember { mutableStateOf(false) }; val sel = ledgers.find { it.id == selectedId }; ExposedDropdownMenuBox(expanded = e, onExpandedChange = { e = it }) { OutlinedTextField(value = sel?.name ?: "选择账本", onValueChange = {}, readOnly = true, label = { Text("所属账本") }, trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(e) }, modifier = Modifier.fillMaxWidth().menuAnchor(), shape = RoundedCornerShape(12.dp)); ExposedDropdownMenu(expanded = e, onDismissRequest = { e = false }) { ledgers.forEach { l -> DropdownMenuItem(text = { Text(l.name) }, onClick = { onSelect(l.id); e = false }) } } } }
+@OptIn(ExperimentalMaterial3Api::class) @Composable fun LedgerSelector(ledgers: List<com.aa.ledger.domain.model.Ledger>, selectedId: Long?, onSelect: (Long) -> Unit) { var e by remember { mutableStateOf(false) }; val sel = ledgers.find { it.id == selectedId }; ExposedDropdownMenuBox(expanded = e, onExpandedChange = { e = it }) { OutlinedTextField(value = sel?.name ?: "选择账本", onValueChange = {}, readOnly = true, label = { Text("所属账本") }, trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(e) }, modifier = Modifier.fillMaxWidth().menuAnchor(MenuAnchorType.PrimaryNotEditable), shape = RoundedCornerShape(12.dp)); ExposedDropdownMenu(expanded = e, onDismissRequest = { e = false }) { ledgers.forEach { l -> DropdownMenuItem(text = { Text(l.name) }, onClick = { onSelect(l.id); e = false }) } } } }

@@ -1,6 +1,11 @@
 package com.aa.ledger.ui.navigation
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.core.tween
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.navigation.NavHostController
@@ -20,6 +25,7 @@ import com.aa.ledger.ui.settlement.SettlementScreen
 import com.aa.ledger.ui.settings.SettingsScreen
 import com.aa.ledger.ui.stats.StatsOverviewScreen
 import com.aa.ledger.ui.stats.StatsScreen
+import com.aa.ledger.ui.theme.AnimSpec
 
 object Routes {
     const val HOME = "home"
@@ -61,6 +67,31 @@ private fun String?.matchesBottomNav(): Boolean {
     }
 }
 
+// 底部导航「根页面」对应的标签索引（与 BottomNavBar.isTabActive 对齐，用于判断切换方向）
+private fun activeTabIndex(route: String?): Int = when {
+    route == null -> -1
+    route.startsWith("home") || route.startsWith("ledger") -> 0
+    route.startsWith("add_expense") -> 1
+    route.startsWith("stats") -> 2
+    route.startsWith("settings") -> 3
+    else -> -1
+}
+
+// 是否为底部导航的 4 个「根页面」（区别于其下的详情页，如 stats/{id}、ledger/{id}）
+private fun isRootTabRoute(route: String?): Boolean = when (route) {
+    "home", "stats_overview", "settings" -> true
+    "add_expense?ledgerId={ledgerId}" -> true
+    else -> false
+}
+
+// 本次导航新页面是否从右侧滑入：底部导航在根页面间切换时，
+// 向右（索引变大）从右滑入、向左（索引变小）从左滑入；其余导航一律从右滑入。
+private fun slideFromRight(initialRoute: String?, targetRoute: String?): Boolean {
+    val from = activeTabIndex(initialRoute)
+    val to = activeTabIndex(targetRoute)
+    return if (isRootTabRoute(targetRoute) && from >= 0 && to >= 0) from <= to else true
+}
+
 @Composable
 fun NavGraph(
     navController: NavHostController = rememberNavController(),
@@ -78,7 +109,33 @@ fun NavGraph(
     Box(modifier = Modifier.fillMaxSize()) {
         NavHost(
             navController = navController,
-            startDestination = startDestination
+            startDestination = startDestination,
+            enterTransition = {
+                val fromRight = slideFromRight(initialState.destination.route, targetState.destination.route)
+                slideInHorizontally(
+                    animationSpec = tween(durationMillis = AnimSpec.TransitionDuration, easing = AnimSpec.IosEaseOut),
+                    initialOffsetX = { fullWidth -> if (fromRight) fullWidth else -fullWidth }
+                ) + fadeIn(animationSpec = AnimSpec.FadeTween)
+            },
+            exitTransition = {
+                val fromRight = slideFromRight(initialState.destination.route, targetState.destination.route)
+                slideOutHorizontally(
+                    animationSpec = tween(durationMillis = AnimSpec.TransitionDuration, easing = AnimSpec.IosEaseOut),
+                    targetOffsetX = { fullWidth -> if (fromRight) -fullWidth / 3 else fullWidth / 3 }
+                ) + fadeOut(animationSpec = AnimSpec.FadeTween)
+            },
+            popEnterTransition = {
+                slideInHorizontally(
+                    animationSpec = tween(durationMillis = AnimSpec.TransitionDuration, easing = AnimSpec.IosEaseOut),
+                    initialOffsetX = { fullWidth -> -fullWidth / 3 }
+                ) + fadeIn(animationSpec = AnimSpec.FadeTween)
+            },
+            popExitTransition = {
+                slideOutHorizontally(
+                    animationSpec = tween(durationMillis = AnimSpec.TransitionDuration, easing = AnimSpec.IosEaseOut),
+                    targetOffsetX = { fullWidth -> fullWidth }
+                ) + fadeOut(animationSpec = AnimSpec.FadeTween)
+            }
         ) {
             // ─── Home ───
             composable(Routes.HOME) {

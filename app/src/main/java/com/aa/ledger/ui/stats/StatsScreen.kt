@@ -1,5 +1,6 @@
 package com.aa.ledger.ui.stats
 
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -7,7 +8,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -22,6 +23,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.aa.ledger.ui.common.bounceClick
 import com.aa.ledger.ui.theme.*
 import com.aa.ledger.util.CurrencyFormatter
 
@@ -36,7 +38,7 @@ fun StatsScreen(ledgerId: Long, onBack: (() -> Unit)? = null, viewModel: StatsVi
         topBar = {
             TopAppBar(
                 title = { Text("消费统计", fontWeight = FontWeight.Bold, fontSize = 26.sp, letterSpacing = (-0.5).sp) },
-                navigationIcon = { if (onBack != null) { IconButton(onClick = onBack) { Icon(Icons.Filled.ArrowBack, "返回") } } },
+                navigationIcon = { if (onBack != null) { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "返回") } } },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = MontraBackground)
             )
         },
@@ -75,7 +77,7 @@ fun StatsScreen(ledgerId: Long, onBack: (() -> Unit)? = null, viewModel: StatsVi
                                         else Modifier.background(Color.Transparent)
                                     )
                                     .then(
-                                        if (!isActive) Modifier.clickable { chartMode = index }
+                                        if (!isActive) Modifier.bounceClick { chartMode = index }
                                         else Modifier
                                     ),
                                 contentAlignment = Alignment.Center
@@ -258,9 +260,16 @@ fun SectionHeader(title: String) {
 @Composable
 fun CategoryBarChart(data: Map<String, Double>) {
     val mx = data.values.maxOrNull() ?: 1.0
+    var started by remember { mutableStateOf(false) }
+    val progress by animateFloatAsState(
+        targetValue = if (started) 1f else 0f,
+        animationSpec = AnimSpec.GrowTween,
+        label = "barGrow"
+    )
+    LaunchedEffect(Unit) { started = true }
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         data.entries.sortedByDescending { it.value }.forEach { (c, a) ->
-            val f = (a / mx).toFloat().coerceIn(0f, 1f)
+            val f = (a / mx).toFloat().coerceIn(0f, 1f) * progress
             val clr = categoryColors[c] ?: SystemIndigo
             Column {
                 Row(
@@ -302,9 +311,16 @@ fun CategoryBarChart(data: Map<String, Double>) {
 @Composable
 fun MemberBarChart(data: Map<String, Double>, total: Double) {
     val mx = data.values.maxOrNull() ?: 1.0
+    var started by remember { mutableStateOf(false) }
+    val progress by animateFloatAsState(
+        targetValue = if (started) 1f else 0f,
+        animationSpec = AnimSpec.GrowTween,
+        label = "barGrow"
+    )
+    LaunchedEffect(Unit) { started = true }
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         data.entries.forEach { (name, amt) ->
-            val f = (amt / mx).toFloat().coerceIn(0f, 1f)
+            val f = (amt / mx).toFloat().coerceIn(0f, 1f) * progress
             val pct = if (total > 0) (amt / total * 100).toInt() else 0
             Column {
                 Row(
@@ -342,17 +358,41 @@ fun MemberBarChart(data: Map<String, Double>, total: Double) {
 fun PieChart(data: List<Pair<String, Double>>, colors: List<Color> = chartColors) {
     val t = data.sumOf { it.second }
     if (t <= 0) return
-    var sa = -90f
+    var started by remember { mutableStateOf(false) }
+    val progress by animateFloatAsState(
+        targetValue = if (started) 1f else 0f,
+        animationSpec = AnimSpec.GrowTween,
+        label = "pieSweep"
+    )
+    LaunchedEffect(Unit) { started = true }
+
+    // 累计占比：从 12 点（-90°）起顺时针，指针扫过每个扇形时才依次展开
+    val fractions = data.map { (it.second / t).toFloat() }
+    val cumStart = FloatArray(fractions.size)
+    var acc = 0f
+    fractions.forEachIndexed { i, f -> cumStart[i] = acc; acc += f }
+
     Canvas(Modifier.fillMaxWidth().height(180.dp)) {
         val r = minOf(size.width, size.height) / 2 * 0.75f
         val c = Offset(size.width / 2, size.height / 2)
-        data.forEachIndexed { i, (_, _) ->
-            val sw = (data[i].second / t * 360).toFloat()
-            drawArc(
-                colors[i % colors.size], sa, sw, true,
-                Offset(c.x - r, c.y - r), Size(r * 2, r * 2)
-            )
-            sa += sw
+        val topLeft = Offset(c.x - r, c.y - r)
+        val arcSize = Size(r * 2, r * 2)
+        data.forEachIndexed { i, _ ->
+            val startFrac = cumStart[i]
+            val endFrac = startFrac + fractions[i]
+            if (endFrac <= startFrac) return@forEachIndexed
+            // 该扇形在全局进度中的局部进度（指针进入其区间后 0→1）
+            val local = ((progress - startFrac) / (endFrac - startFrac)).coerceIn(0f, 1f)
+            if (local > 0f) {
+                drawArc(
+                    colors[i % colors.size],
+                    -90f + startFrac * 360f,
+                    fractions[i] * 360f * local,
+                    true,
+                    topLeft,
+                    arcSize
+                )
+            }
         }
     }
 }
